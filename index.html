@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Transformer Materials Cost Estimator v0.6</title>
+  <title>Transformer Materials Cost Estimator v0.7</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     :root {
@@ -334,7 +334,7 @@
 
     .winding-table-header {
       display: grid;
-      grid-template-columns: 1.4fr 0.8fr 0.8fr;
+      grid-template-columns: 1.4fr 0.6fr 0.7fr 0.9fr;
       gap: 6px;
       font-size: 0.72rem;
       color: var(--muted);
@@ -345,7 +345,7 @@
 
     .winding-row {
       display: grid;
-      grid-template-columns: 1.4fr 0.8fr 0.8fr;
+      grid-template-columns: 1.4fr 0.6fr 0.7fr 0.9fr;
       gap: 6px;
       margin-bottom: 4px;
     }
@@ -368,12 +368,12 @@
         Transformer Materials
         <span class="badge">Copper · Steel · Cost</span>
       </h1>
-      <p>Imperial-unit estimator with cumulative windings & EI lamination geometry.</p>
+      <p>Imperial-unit estimator with per-winding wire pricing & EI lamination geometry.</p>
     </div>
     <div>
       <span class="badge-small">
         <span>Estimator</span>
-        <span>v0.6</span>
+        <span>v0.7</span>
       </span>
     </div>
   </header>
@@ -418,15 +418,6 @@
           <input id="wireBuildFactor" type="number" step="0.01" placeholder="1.05">
           <div class="hint">Multiplies bare AWG diameter to approximate enamel/packing.</div>
         </div>
-
-        <div class="field">
-          <label for="copperPrice">
-            Copper price
-            <span class="unit">per lb</span>
-          </label>
-          <input id="copperPrice" type="number" step="0.01" placeholder="e.g. 35.00">
-          <div class="hint">Internal magnet wire cost per pound.</div>
-        </div>
       </div>
 
       <hr style="border:none;border-top:1px solid #111827;margin:10px 0 12px;">
@@ -441,6 +432,7 @@
           <div>Label</div>
           <div>AWG</div>
           <div>Turns</div>
+          <div>$ / lb</div>
         </div>
         <div id="windingRows"></div>
         <div class="btn-row" style="margin-top:4px;">
@@ -450,7 +442,7 @@
           </button>
         </div>
         <div class="hint">
-          Rows are evaluated from top to bottom. Add as many secondaries as you need.
+          Rows are evaluated from top to bottom. Use different $/lb per gauge if you like.
         </div>
       </div>
 
@@ -727,6 +719,7 @@
       <input type="text" class="mono w-label" placeholder="${placeholder}">
       <input type="number" class="mono w-awg" step="1" placeholder="AWG">
       <input type="number" class="mono w-turns" step="1" placeholder="Turns">
+      <input type="number" class="mono w-price" step="0.01" placeholder="$/lb">
     `;
     container.appendChild(row);
   }
@@ -747,13 +740,20 @@
       const labelEl = row.querySelector(".w-label");
       const awgEl   = row.querySelector(".w-awg");
       const turnsEl = row.querySelector(".w-turns");
+      const priceEl = row.querySelector(".w-price");
 
       const label = (labelEl.value || "").trim() || `Winding ${idx + 1}`;
       const awgVal = parseFloat(awgEl.value);
       const turnsVal = parseFloat(turnsEl.value);
+      const priceVal = parseFloat(priceEl.value);
 
       if (!isNaN(awgVal) && !isNaN(turnsVal) && turnsVal > 0) {
-        windings.push({ label, awg: awgVal, turns: turnsVal });
+        windings.push({
+          label,
+          awg: awgVal,
+          turns: turnsVal,
+          pricePerLb: !isNaN(priceVal) && priceVal > 0 ? priceVal : null
+        });
       }
     });
     return windings;
@@ -820,11 +820,10 @@
       ? wireBuildFactorInput
       : 1.05; // default build factor
 
-    const copperPrice = readNumber("copperPrice");
     const windings = getWindingInputs();
 
     if (windings.length === 0) {
-      showError("Please enter at least one winding (AWG and turns).");
+      showError("Please enter at least one winding (AWG, turns).");
       return;
     }
 
@@ -832,6 +831,8 @@
     let totalLength_in = 0;
     let totalVolume_in3 = 0;
     let totalMassCopper_lb = 0;
+    let totalCopperCost = 0;
+    let anyCopperPrice = false;
 
     let breakdownParts = [];
     let cumulativeRadial_in = 0;
@@ -879,15 +880,20 @@
       totalVolume_in3  += volume_in3;
       totalMassCopper_lb += mass_lb;
 
-      breakdownParts.push(
-        `${w.label} (AWG ${w.awg}): ${formatNumber(mass_lb, 4)} lb`
-      );
+      let line = `${w.label} (AWG ${w.awg}): ${formatNumber(mass_lb, 4)} lb`;
+      if (w.pricePerLb != null) {
+        const cost = mass_lb * w.pricePerLb;
+        line += ` @ $${formatNumber(w.pricePerLb, 2)}/lb → $${formatNumber(cost, 2)}`;
+        totalCopperCost += cost;
+        anyCopperPrice = true;
+      }
+      breakdownParts.push(line);
 
       cumulativeRadial_in += radialThickness_in;
     }
 
     const totalLength_ft = totalLength_in / 12.0;
-    const copperCost = copperPrice ? totalMassCopper_lb * copperPrice : null;
+    const copperCost = anyCopperPrice ? totalCopperCost : null;
 
     // --- Steel calculations (EI laminations) ---
     const outerW      = readNumber("outerWidth");
@@ -909,9 +915,9 @@
     let steelVolume_in3 = null;
 
     if (outerW && outerH && windowW && windowH && stackHeight) {
-      steelArea_in2  = (outerW * outerH) - (windowW * windowH);
+      steelArea_in2   = (outerW * outerH) - (windowW * windowH);
       steelVolume_in3 = steelArea_in2 * stackHeight * packingFactor;
-      mass_steel_lb  = steelVolume_in3 * steelDensity;
+      mass_steel_lb   = steelVolume_in3 * steelDensity;
       if (steelPrice) {
         steelCost = mass_steel_lb * steelPrice;
       }
@@ -983,7 +989,7 @@
 
   function resetAll() {
     const ids = [
-      "bobbinHeight", "bobbinLength", "wireBuildFactor", "copperPrice",
+      "bobbinHeight", "bobbinLength", "wireBuildFactor",
       "outerWidth", "outerHeight", "windowWidth", "windowHeight",
       "stackHeight", "packingFactor", "steelDensity", "steelPrice",
       "steelSpec"
