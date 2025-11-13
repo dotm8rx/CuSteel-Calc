@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Transformer Materials Cost Estimator v0.4</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-alt: #111827;
+      --card: #020617;
+      --accent: #f97316;
+      --accent-soft: rgba(249,115,22,0.12);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2937;
+      --error: #f97373;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                   "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
+      color: var(--text);
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 1120px;
+      padding: 24px 16px 40px;
+      margin: auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      letter-spacing: 0.03em;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    header h1 span.badge {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--accent-soft);
+      background: rgba(15,23,42,0.8);
+      color: var(--muted);
+    }
+
+    header p {
+      margin: 0;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2.4fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 920px) {
+      .grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, #111827, #020617);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      box-shadow:
+        0 18px 40px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(15,23,42,0.8);
+      padding: 16px 18px 18px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2 .pill {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .section-subtitle {
+      margin: 0 0 12px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.8rem;
+    }
+
+    .field label {
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: baseline;
+    }
+
+    .field label span.unit {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    .field input, .field select {
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      background: #020617;
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 0.84rem;
+      outline: none;
+      transition: border 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+
+    .field input::placeholder {
+      color: #4b5563;
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(249,115,22,0.5);
+      background: #020617;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      color: #6b7280;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
+    button {
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #f97316, #facc15);
+      color: #111827;
+      box-shadow:
+        0 8px 20px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(248,250,252,0.04);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
+    }
+
+    button span.icon { font-size: 0.9rem; }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow:
+        0 4px 12px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(248,250,252,0.04);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid #1f2937;
+      box-shadow: none;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(15,23,42,0.9);
+      filter: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: #9ca3af;
+      border: 1px dashed #374151;
+      box-shadow: none;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(15,23,42,0.9);
+    }
+
+    .results {
+      border-radius: 10px;
+      border: 1px dashed #1f2937;
+      padding: 10px 10px 8px;
+      margin-top: 10px;
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.6), rgba(15,23,42,0.1));
+      font-size: 0.8rem;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .results-header span.label {
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+    }
+
+    .results-header span.value {
+      font-size: 0.8rem;
+      color: var(--accent);
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px 12px;
+    }
+
+    @media (max-width: 540px) {
+      .results-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .results-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .results-item span.label { color: var(--muted); }
+    .results-item span.value { font-variant-numeric: tabular-nums; }
+
+    .totals-card {
+      margin-top: 8px;
+      padding: 10px 10px 8px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(249,115,22,0.12), rgba(37,99,235,0.08));
+      border: 1px solid rgba(249,115,22,0.35);
+      font-size: 0.84rem;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .totals-row span.label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .totals-row span.value {
+      font-size: 1rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .badge-small {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.5);
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .error {
+      margin-top: 6px;
+      font-size: 0.72rem;
+      color: var(--error);
+    }
+
+    .winding-table-header {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr 0.8fr;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 4px;
+    }
+
+    .winding-row {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr 0.8fr;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .winding-row input {
+      width: 100%;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <header>
+    <div>
+      <h1>
+        Transformer Materials
+        <span class="badge">Copper · Steel · Cost</span>
+      </h1>
+      <p>Estimator based on bobbin dimensions, cumulative windings, and EI lam geometry.</p>
+    </div>
+    <div>
+      <span class="badge-small">
+        <span>Estimator</span>
+        <span>v0.4</span>
+      </span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: INPUTS -->
+    <section class="card">
+      <h2>
+        <span class="pill">Inputs</span>
+        Design Parameters
+      </h2>
+      <p class="section-subtitle">
+        Enter bobbin and lamination geometry plus windings in the order they are wound (inner to outer).
+      </p>
+
+      <!-- Bobbin geometry -->
+      <div class="field-row">
+        <div class="field">
+          <label for="bobbinWidth">
+            Bobbin opening width
+            <span class="unit">mm</span>
+          </label>
+          <input id="bobbinWidth" type="number" step="0.01" placeholder="e.g. 26.5">
+          <div class="hint">Inner window width inside bobbin flanges.</div>
+        </div>
+        <div class="field">
+          <label for="bobbinHeight">
+            Bobbin opening height
+            <span class="unit">mm</span>
+          </label>
+          <input id="bobbinHeight" type="number" step="0.01" placeholder="e.g. 32.0">
+          <div class="hint">Inner window height inside bobbin flanges.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="wireBuildFactor">
+            Wire build factor
+            <span class="unit">× bare dia</span>
+          </label>
+          <input id="wireBuildFactor" type="number" step="0.01" placeholder="1.05">
+          <div class="hint">Multiplies bare AWG diameter to approximate enamel/packing.</div>
+        </div>
+
+        <div class="field">
+          <label for="copperPrice">
+            Copper price
+            <span class="unit">per kg</span>
+          </label>
+          <input id="copperPrice" type="number" step="0.01" placeholder="e.g. 12.50">
+          <div class="hint">Internal magnet wire cost per kilogram.</div>
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #111827;margin:10px 0 12px;">
+
+      <!-- Windings (dynamic rows) -->
+      <div class="field">
+        <label>
+          Windings (inner → outer)
+          <span class="unit">Primary then secondaries</span>
+        </label>
+        <div class="winding-table-header mono">
+          <div>Label</div>
+          <div>AWG</div>
+          <div>Turns</div>
+        </div>
+        <div id="windingRows"></div>
+        <div class="btn-row" style="margin-top:4px;">
+          <button type="button" class="btn-secondary" id="addWindingBtn">
+            <span class="icon">＋</span>
+            <span>Add winding</span>
+          </button>
+        </div>
+        <div class="hint">
+          Rows are evaluated from top to bottom. Additional secondaries? Just keep adding rows.
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #111827;margin:10px 0 12px;">
+
+      <!-- Steel inputs -->
+      <div class="field-row">
+        <div class="field">
+          <label for="steelType">
+            Steel type
+            <span class="unit">grade</span>
+          </label>
+          <select id="steelType">
+            <option value="custom">Custom / Other</option>
+            <option value="M6">M6 grain-oriented</option>
+            <option value="M19">M19 non-oriented</option>
+          </select>
+          <div class="hint">Sets default density & packing factor. You can override manually.</div>
+        </div>
+        <div class="field">
+          <label for="steelSpec">
+            Steel spec
+            <span class="unit">note</span>
+          </label>
+          <input id="steelSpec" type="text" placeholder='e.g. "M6, 0.014&quot;, GOSS"'>
+          <div class="hint">Free-text spec from the drawing.</div>
+        </div>
+      </div>
+
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field">
+          <label for="outerWidth">
+            Lamination outer width
+            <span class="unit">mm</span>
+          </label>
+          <input id="outerWidth" type="number" step="0.01" placeholder="e.g. 70.0">
+        </div>
+        <div class="field">
+          <label for="outerHeight">
+            Lamination outer height
+            <span class="unit">mm</span>
+          </label>
+          <input id="outerHeight" type="number" step="0.01" placeholder="e.g. 90.0">
+        </div>
+      </div>
+
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field">
+          <label for="windowWidth">
+            Window width
+            <span class="unit">mm</span>
+          </label>
+          <input id="windowWidth" type="number" step="0.01" placeholder="e.g. 32.0">
+        </div>
+        <div class="field">
+          <label for="windowHeight">
+            Window height
+            <span class="unit">mm</span>
+          </label>
+          <input id="windowHeight" type="number" step="0.01" placeholder="e.g. 40.0">
+        </div>
+        <div class="field">
+          <button type="button" class="btn-ghost" id="copyBobbinToWindowBtn">
+            <span class="icon">⟲</span>
+            Use bobbin opening
+          </button>
+          <div class="hint">Copies bobbin opening into lam window fields.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="stackHeight">
+            Stack height
+            <span class="unit">mm</span>
+          </label>
+          <input id="stackHeight" type="number" step="0.01" placeholder="e.g. 40.0">
+          <div class="hint">Total lamination stack thickness (EI core).</div>
+        </div>
+
+        <div class="field">
+          <label for="packingFactor">
+            Lamination packing factor
+            <span class="unit">0–1</span>
+          </label>
+          <input id="packingFactor" type="number" step="0.01" placeholder="0.95">
+          <div class="hint">Defaults from steel type, or 0.95 for custom.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="steelDensity">
+            Steel density
+            <span class="unit">g/cm³</span>
+          </label>
+          <input id="steelDensity" type="number" step="0.01" placeholder="7.65">
+          <div class="hint">Defaults from steel type. Override if needed.</div>
+        </div>
+
+        <div class="field">
+          <label for="steelPrice">
+            Steel price
+            <span class="unit">per kg</span>
+          </label>
+          <input id="steelPrice" type="number" step="0.01" placeholder="e.g. 3.25">
+          <div class="hint">Internal EI lam cost per kilogram.</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="calcBtn" type="button">
+          <span class="icon">⚡</span>
+          <span>Calculate</span>
+        </button>
+        <button id="resetBtn" type="button" class="btn-secondary">
+          <span class="icon">↺</span>
+          <span>Reset</span>
+        </button>
+      </div>
+
+      <div id="errorBox" class="error" style="display:none;"></div>
+    </section>
+
+    <!-- RIGHT: RESULTS -->
+    <section class="card">
+      <h2>
+        <span class="pill">Outputs</span>
+        Mass & Cost
+      </h2>
+      <p class="section-subtitle">
+        Copper build is cumulative from the innermost winding through to the last secondary. Steel is approximated from EI lam geometry.
+      </p>
+
+      <!-- Copper results -->
+      <div class="results">
+        <div class="results-header">
+          <span class="label">Copper windings</span>
+          <span class="value" id="copperSummary">–</span>
+        </div>
+        <div class="results-grid">
+          <div class="results-item">
+            <span class="label">Total length</span>
+            <span class="value" id="copperLength">–</span>
+          </div>
+          <div class="results-item">
+            <span class="label">Total volume</span>
+            <span class="value" id="copperVolume">–</span>
+          </div>
+          <div class="results-item">
+            <span class="label">Total mass</span>
+            <span class="value" id="copperMass">–</span>
+          </div>
+          <div class="results-item">
+            <span class="label">Copper cost</span>
+            <span class="value" id="copperCost">–</span>
+          </div>
+        </div>
+        <div class="hint mono" id="windingBreakdown" style="margin-top:6px;">&nbsp;</div>
+      </div>
+
+      <!-- Steel results -->
+      <div class="results">
+        <div class="results-header">
+          <span class="label">Core steel (EI laminations)</span>
+          <span class="value" id="steelSummary">–</span>
+        </div>
+        <div class="results-grid">
+          <div class="results-item">
+            <span class="label">Steel area</span>
+            <span class="value" id="steelArea">–</span>
+          </div>
+          <div class="results-item">
+            <span class="label">Volume</span>
+            <span class="value" id="steelVolume">–</span>
+          </div>
+          <div class="results-item">
+            <span class="label">Mass</span>
+            <span class="value" id="steelMass">–</span>
+          </div>
+          <div class="results-item">
+            <span class="label">Steel cost</span>
+            <span class="value" id="steelCost">–</span>
+          </div>
+        </div>
+        <div class="hint mono" id="steelSpecOut" style="margin-top:6px;">&nbsp;</div>
+      </div>
+
+      <!-- Totals -->
+      <div class="totals-card">
+        <div class="totals-row">
+          <span class="label">Total materials cost</span>
+          <span class="value" id="totalCost">–</span>
+        </div>
+        <div class="totals-row">
+          <span class="label">Total mass</span>
+          <span class="value" id="totalMass">–</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  // AWG table: bare copper diameter in mm
+  const AWG_DATA = {
+    10: { diameter_mm: 2.588 },
+    11: { diameter_mm: 2.304 },
+    12: { diameter_mm: 2.053 },
+    13: { diameter_mm: 1.828 },
+    14: { diameter_mm: 1.628 },
+    15: { diameter_mm: 1.45 },
+    16: { diameter_mm: 1.291 },
+    17: { diameter_mm: 1.15 },
+    18: { diameter_mm: 1.024 },
+    19: { diameter_mm: 0.912 },
+    20: { diameter_mm: 0.812 },
+    21: { diameter_mm: 0.723 },
+    22: { diameter_mm: 0.644 },
+    23: { diameter_mm: 0.573 },
+    24: { diameter_mm: 0.511 },
+    25: { diameter_mm: 0.455 },
+    26: { diameter_mm: 0.405 },
+    27: { diameter_mm: 0.361 },
+    28: { diameter_mm: 0.321 },
+    29: { diameter_mm: 0.286 },
+    30: { diameter_mm: 0.255 },
+    31: { diameter_mm: 0.227 },
+    32: { diameter_mm: 0.202 },
+    33: { diameter_mm: 0.18 },
+    34: { diameter_mm: 0.16 },
+    35: { diameter_mm: 0.143 },
+    36: { diameter_mm: 0.127 },
+    37: { diameter_mm: 0.113 },
+    38: { diameter_mm: 0.101 },
+    39: { diameter_mm: 0.0897 },
+    40: { diameter_mm: 0.0799 }
+  };
+
+  const DENSITY_COPPER_G_CM3_DEFAULT = 8.96;
+  const DENSITY_STEEL_G_CM3_DEFAULT  = 7.65;
+
+  const $ = (id) => document.getElementById(id);
+
+  function formatNumber(value, digits = 3) {
+    if (!isFinite(value)) return "–";
+    return Number(value).toFixed(digits);
+  }
+
+  function showError(message) {
+    const box = $("errorBox");
+    box.textContent = message;
+    box.style.display = message ? "block" : "none";
+  }
+
+  function readNumber(id) {
+    const v = parseFloat($(id).value);
+    return isNaN(v) ? null : v;
+  }
+
+  // ----- Dynamic windings -----
+
+  function addWindingRow(placeholderLabel) {
+    const container = $("windingRows");
+    const rowCount = container.querySelectorAll(".winding-row").length;
+    const row = document.createElement("div");
+    row.className = "winding-row";
+
+    const placeholder = placeholderLabel
+      || (rowCount === 0 ? "Primary" : `Secondary ${rowCount}`);
+
+    row.innerHTML = `
+      <input type="text" class="mono w-label" placeholder="${placeholder}">
+      <input type="number" class="mono w-awg" step="1" placeholder="AWG">
+      <input type="number" class="mono w-turns" step="1" placeholder="Turns">
+    `;
+    container.appendChild(row);
+  }
+
+  function initDefaultWindings() {
+    const container = $("windingRows");
+    container.innerHTML = "";
+    addWindingRow("Primary");
+    addWindingRow("Secondary 1");
+    addWindingRow("Secondary 2");
+  }
+
+  function getWindingInputs() {
+    const container = $("windingRows");
+    const rows = container.querySelectorAll(".winding-row");
+    const windings = [];
+    rows.forEach((row, idx) => {
+      const labelEl = row.querySelector(".w-label");
+      const awgEl   = row.querySelector(".w-awg");
+      const turnsEl = row.querySelector(".w-turns");
+
+      const label = (labelEl.value || "").trim() || `Winding ${idx + 1}`;
+      const awgVal = parseFloat(awgEl.value);
+      const turnsVal = parseFloat(turnsEl.value);
+
+      if (!isNaN(awgVal) && !isNaN(turnsVal) && turnsVal > 0) {
+        windings.push({ label, awg: awgVal, turns: turnsVal });
+      }
+    });
+    return windings;
+  }
+
+  // ----- Steel helper: apply steel type defaults -----
+
+  function applySteelTypeDefaults() {
+    const type = $("steelType").value;
+    let density = DENSITY_STEEL_G_CM3_DEFAULT;
+    let packing = 0.95;
+    let specText = "";
+
+    if (type === "M6") {
+      density = 7.65;  // typical electrical steel density
+      packing = 0.96;  // GOSS, good stacking
+      specText = 'M6 grain-oriented';
+    } else if (type === "M19") {
+      density = 7.65;
+      packing = 0.94;  // slightly lower packing
+      specText = 'M19 non-oriented';
+    } else {
+      density = DENSITY_STEEL_G_CM3_DEFAULT;
+      packing = 0.95;
+    }
+
+    // Only set fields if user hasn't already typed something
+    if (!$("steelDensity").value) {
+      $("steelDensity").value = density.toString();
+    }
+    if (!$("packingFactor").value) {
+      $("packingFactor").value = packing.toString();
+    }
+    if (specText && !$("steelSpec").value.trim()) {
+      $("steelSpec").value = specText;
+    }
+  }
+
+  function copyBobbinToWindow() {
+    const bw = readNumber("bobbinWidth");
+    const bh = readNumber("bobbinHeight");
+    if (!bw || !bh) {
+      showError("Enter bobbin opening width & height before copying to lam window.");
+      return;
+    }
+    showError("");
+    $("windowWidth").value = bw.toString();
+    $("windowHeight").value = bh.toString();
+  }
+
+  // ----- Core calculation -----
+
+  function calculate() {
+    showError("");
+
+    const bobbinWidth  = readNumber("bobbinWidth");
+    const bobbinHeight = readNumber("bobbinHeight");
+    if (!bobbinWidth || !bobbinHeight) {
+      showError("Please enter bobbin opening width and height.");
+      return;
+    }
+
+    const wireBuildFactorInput = readNumber("wireBuildFactor");
+    const wireBuildFactor = wireBuildFactorInput && wireBuildFactorInput > 0
+      ? wireBuildFactorInput
+      : 1.05; // default build factor
+
+    const copperPrice = readNumber("copperPrice");
+    const windings = getWindingInputs();
+
+    if (windings.length === 0) {
+      showError("Please enter at least one winding (AWG and turns).");
+      return;
+    }
+
+    // --- Copper calculations with cumulative build ---
+    let totalLength_mm = 0;
+    let totalVolume_cm3 = 0;
+    let totalMassCopper_kg = 0;
+
+    let breakdownParts = [];
+    let cumulativeRadial_mm = 0;
+
+    for (let i = 0; i < windings.length; i++) {
+      const w = windings[i];
+      const awgData = AWG_DATA[w.awg];
+      if (!awgData) {
+        showError(`AWG ${w.awg} not found in table. Add it or choose a supported gauge (10–40).`);
+        return;
+      }
+
+      const d_bare_mm = awgData.diameter_mm;
+      const d_eff_mm  = d_bare_mm * wireBuildFactor;
+
+      // Turns per layer along bobbin width
+      const tpl = Math.floor(bobbinWidth / d_eff_mm);
+      if (!tpl || tpl < 1) {
+        showError(`Winding "${w.label}": bobbin width too small for this AWG / build factor.`);
+        return;
+      }
+
+      const layers = Math.ceil(w.turns / tpl);
+      const radialThickness_mm = layers * d_eff_mm;
+
+      // Average radius for this winding
+      const b_avg_mm = cumulativeRadial_mm + radialThickness_mm / 2;
+
+      // Rectangular MLT at this average radius
+      const mlt_mm = 2 * ((bobbinWidth + 2 * b_avg_mm) + (bobbinHeight + 2 * b_avg_mm));
+
+      const length_mm = mlt_mm * w.turns;
+
+      // Cross-sectional area (mm^2)
+      const area_mm2 = Math.PI * Math.pow(d_bare_mm, 2) / 4;
+
+      // Volume (mm^3) and cm^3
+      const volume_mm3 = area_mm2 * length_mm;
+      const volume_cm3 = volume_mm3 / 1000.0;
+
+      const mass_g  = volume_cm3 * DENSITY_COPPER_G_CM3_DEFAULT;
+      const mass_kg = mass_g / 1000.0;
+
+      totalLength_mm  += length_mm;
+      totalVolume_cm3 += volume_cm3;
+      totalMassCopper_kg += mass_kg;
+
+      breakdownParts.push(
+        `${w.label} (AWG ${w.awg}): ${formatNumber(mass_kg, 4)} kg`
+      );
+
+      cumulativeRadial_mm += radialThickness_mm;
+    }
+
+    const copperCost = copperPrice ? totalMassCopper_kg * copperPrice : null;
+
+    // --- Steel calculations (EI laminations) ---
+    const outerW       = readNumber("outerWidth");
+    const outerH       = readNumber("outerHeight");
+    const windowW      = readNumber("windowWidth");
+    const windowH      = readNumber("windowHeight");
+    const stackHeight  = readNumber("stackHeight");
+    let packingFactor  = readNumber("packingFactor");
+    let steelDensity   = readNumber("steelDensity");
+    const steelPrice   = readNumber("steelPrice");
+    const steelSpec    = $("steelSpec").value.trim();
+
+    if (!packingFactor) packingFactor = 0.95;
+    if (!steelDensity)  steelDensity  = DENSITY_STEEL_G_CM3_DEFAULT;
+
+    let mass_steel_kg = null;
+    let steelCost = null;
+    let steelArea_mm2 = null;
+    let steelVolume_mm3 = null;
+
+    if (outerW && outerH && windowW && windowH && stackHeight) {
+      steelArea_mm2 = (outerW * outerH) - (windowW * windowH);
+      steelVolume_mm3 = steelArea_mm2 * stackHeight * packingFactor;
+      const steelVolume_cm3 = steelVolume_mm3 / 1000.0;
+      const mass_steel_g = steelVolume_cm3 * steelDensity;
+      mass_steel_kg = mass_steel_g / 1000.0;
+      if (steelPrice) {
+        steelCost = mass_steel_kg * steelPrice;
+      }
+    }
+
+    // --- Totals ---
+    const totalMassKg = (totalMassCopper_kg || 0) + (mass_steel_kg || 0);
+    const totalCostVal =
+      (copperCost || 0) +
+      (steelCost || 0);
+
+    // --- Update UI (copper) ---
+    const totalLength_m = totalLength_mm / 1000.0;
+
+    $("copperLength").textContent = formatNumber(totalLength_m, 3) + " m";
+    $("copperVolume").textContent = formatNumber(totalVolume_cm3, 3) + " cm³";
+    $("copperMass").textContent   = formatNumber(totalMassCopper_kg, 4) + " kg";
+
+    $("copperCost").textContent = copperCost != null
+      ? "$" + formatNumber(copperCost, 2)
+      : "–";
+
+    $("copperSummary").textContent =
+      (totalMassCopper_kg ? formatNumber(totalMassCopper_kg, 3) + " kg" : "–") +
+      (copperCost != null ? " · $" + formatNumber(copperCost, 2) : "");
+
+    $("windingBreakdown").textContent = breakdownParts.length
+      ? breakdownParts.join("  ·  ")
+      : "";
+
+    // --- Update UI (steel) ---
+    $("steelArea").textContent = steelArea_mm2 != null
+      ? formatNumber(steelArea_mm2, 1) + " mm²"
+      : "–";
+
+    $("steelVolume").textContent = steelVolume_mm3 != null
+      ? formatNumber(steelVolume_mm3 / 1000.0, 2) + " cm³"
+      : "–";
+
+    $("steelMass").textContent = mass_steel_kg != null
+      ? formatNumber(mass_steel_kg, 3) + " kg"
+      : "–";
+
+    $("steelCost").textContent = steelCost != null
+      ? "$" + formatNumber(steelCost, 2)
+      : "–";
+
+    $("steelSummary").textContent =
+      (mass_steel_kg != null ? formatNumber(mass_steel_kg, 3) + " kg" : "–") +
+      (steelCost != null ? " · $" + formatNumber(steelCost, 2) : "");
+
+    $("steelSpecOut").textContent = steelSpec
+      ? `Steel spec: ${steelSpec} · density ${formatNumber(steelDensity, 2)} g/cm³`
+      : `Density used: ${formatNumber(steelDensity, 2)} g/cm³`;
+
+    // --- Totals ---
+    $("totalMass").textContent = totalMassKg > 0
+      ? formatNumber(totalMassKg, 3) + " kg"
+      : "–";
+
+    $("totalCost").textContent = totalCostVal > 0
+      ? "$" + formatNumber(totalCostVal, 2)
+      : "–";
+  }
+
+  function resetAll() {
+    const ids = [
+      "bobbinWidth", "bobbinHeight", "wireBuildFactor", "copperPrice",
+      "outerWidth", "outerHeight", "windowWidth", "windowHeight",
+      "stackHeight", "packingFactor", "steelDensity", "steelPrice",
+      "steelSpec"
+    ];
+    ids.forEach(id => { const el = $(id); if (el) el.value = ""; });
+
+    const outputs = [
+      "copperLength", "copperVolume", "copperMass", "copperCost",
+      "copperSummary", "steelArea", "steelVolume", "steelMass",
+      "steelCost", "steelSummary", "totalMass", "totalCost"
+    ];
+    outputs.forEach(id => $(id).textContent = "–");
+
+    $("windingBreakdown").textContent = "";
+    $("steelSpecOut").textContent = "";
+    $("steelType").value = "custom";
+    showError("");
+    initDefaultWindings();
+  }
+
+  // Wire up events
+  $("calcBtn").addEventListener("click", calculate);
+  $("resetBtn").addEventListener("click", resetAll);
+  $("addWindingBtn").addEventListener("click", () => addWindingRow());
+  $("steelType").addEventListener("change", applySteelTypeDefaults);
+  $("copyBobbinToWindowBtn").addEventListener("click", copyBobbinToWindow);
+
+  // Initial state
+  initDefaultWindings();
+</script>
+</body>
+</html>
